@@ -1,5 +1,5 @@
-const express = require('express');
-
+import express from 'express';
+import userRoutes from "./routes/userRoutes.js";
 const app = express();
 app.use(express.json());
 const PORT = 3000;
@@ -9,6 +9,8 @@ let todos=[
     {id:2,text:"Express middleware",done:false},
     {id:3,text:"Express throttling",done:true}
 ]
+
+app.use("/api/auth",userRoutes);
 
 app.get('/todos',(req,res)=>{
     res.json(todos);

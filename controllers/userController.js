@@ -3,10 +3,10 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '../generated/prisma/index.js';
 const prisma = new PrismaClient();
 
-async function createUser(req,res) {
+export async function createUser(req,res) {
     try {
         
-        const{name, email, password} = req.body();
+        const{name, email, password} = req.body;
 
         const existingUser = await prisma.user.findUnique({
             where: {
@@ -15,8 +15,8 @@ async function createUser(req,res) {
         });
 
         if (existingUser) {
-            console.log("User already exists with this email");
-            return { error: "Email already exists" };
+            
+            return res.status(400).json({ error: "Email already exists" });
         }
 
         
@@ -31,22 +31,46 @@ async function createUser(req,res) {
                 name: name,
             },
         });
-        console.log('User Created:', newUser);
-        res.status(200).send({message:"User Created Sucessfully!"});
-        const token = jwt.sign({newUser:email},"task",{
+        console.log('User Created:', newUser.name);
+        
+        const token = jwt.sign({email:newUser.email,id:newUser.id},"task",{
             expiresIn:"1h",
         });
-        res.status(200).json({token});
-        return newUser;
+        return res.status(200).json({message:"User Created Successfully",token});
+        
     } catch (error) {
-        console.log("User Not Created", error);
-        res.status(500).send({message:"Some error occureed"})
-        return { error: error.message };
+        console.error("User Not Created", error);
+        return res.status(500).json({ error: error.message });
     } finally {
         await prisma.$disconnect();
     }
 }
-
-async function loginUser(email,password) {
-    
-}
+//login userr
+export async function loginUser(req,res) {
+    try{
+        const {email,password} = req.body;
+        let user = await prisma.user.findUnique({
+            where: {
+                email: email
+            }
+        });
+        if(user){
+            const pwmatch = await bcrypt.compare(password,user.password);
+            if(!pwmatch){
+                return res.status(401).json({error:"Authentication Failed"})
+            }
+            const token = jwt.sign({id:user.id,email:user.email},"task",{
+                expiresIn:"1h",
+            });
+            return res.status(200).json({message:"Login Successful",token});
+        }else{
+            res.status(404).send({message:"user doesn't exist"});
+        }
+    }catch(error){
+        console.error("Login error",error.message);
+        res.status(500).send({message:"Some error occurred"});
+    }
+    finally{
+        await prisma.$disconnect();
+    }
+};
